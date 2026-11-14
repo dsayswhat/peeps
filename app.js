@@ -8,6 +8,7 @@
      4. Dialog (custom confirm / prompt)
      5. Tallies: tap / long-press
      6. Toast with Undo
+     7. Reset all
 
    The `db` object comes from db.js, which is loaded first.
    ========================================================================== */
@@ -249,10 +250,12 @@ async function onAddKid(e) {
     lastTexted: null,
     order: state.kids.length ? Math.max(...state.kids.map(k => k.order)) + 1 : 0,
   };
-  await db.putKid(kid);
+  // Add to the screen and clear the form right away, before the (async) save,
+  // so a quick second entry can't be wiped or get the same `order`.
   state.kids.push(kid);
   clearAddForm();
   render();
+  await db.putKid(kid);
   showToast(`Added ${name}`);
 }
 
@@ -487,6 +490,46 @@ async function onUndo() {
   }
 }
 
+/* ---------- 7. Reset all ---------- */
+
+async function resetAll() {
+  const ok = await askDialog({
+    title: 'Reset all tallies to zero?',
+    message: 'Every Talked and Texted count goes back to 0, and "Counting since" starts today.',
+    okLabel: 'Reset', danger: true,
+  });
+  if (!ok) return;
+
+  // Snapshot the old numbers in memory so Undo can restore them.
+  const snapshot = state.kids.map(k => ({
+    id: k.id, talked: k.talked, texted: k.texted, lastTalked: k.lastTalked, lastTexted: k.lastTexted,
+  }));
+  const previousReset = state.lastReset;
+
+  state.kids.forEach(k => {
+    k.talked = 0;
+    k.texted = 0;
+    k.lastTalked = null;
+    k.lastTexted = null;
+  });
+  state.lastReset = Date.now();
+  await db.putKids(state.kids);
+  await db.setMeta('lastReset', state.lastReset);
+  render();
+  vibrate(30);
+
+  showToast('All tallies reset', async () => {
+    snapshot.forEach(saved => {
+      const kid = findKid(saved.id);
+      if (kid) Object.assign(kid, saved);
+    });
+    state.lastReset = previousReset;
+    await db.putKids(state.kids);
+    await db.setMeta('lastReset', previousReset);
+    render();
+  });
+}
+
 /* ---------- Start-up ---------- */
 
 async function init() {
@@ -509,6 +552,7 @@ async function init() {
     if (e.target.closest('.tally')) e.preventDefault();
   });
   $('#toast-undo').addEventListener('click', onUndo);
+  $('#reset-btn').addEventListener('click', resetAll);
 
   // Load saved data
   state.kids = await db.getAllKids();
