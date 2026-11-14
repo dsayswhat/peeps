@@ -9,6 +9,7 @@
      5. Tallies: tap / long-press
      6. Toast with Undo
      7. Reset all
+     8. Offline support (service worker) + persistent storage
 
    The `db` object comes from db.js, which is loaded first.
    ========================================================================== */
@@ -530,6 +531,43 @@ async function resetAll() {
   });
 }
 
+/* ---------- 8. Offline support + storage ---------- */
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  // When a new version's service worker takes over, reload once so the new
+  // files are used. (Skipped on the very first install: nothing to refresh.)
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
+  navigator.serviceWorker.register('./sw.js')
+    .then(() => navigator.serviceWorker.ready)
+    .then(showVersion)
+    .catch(err => console.warn('Service worker registration failed:', err));
+}
+
+/** Ask the service worker for its CACHE_VERSION and show it in the footer. */
+function showVersion(registration) {
+  if (!registration.active) return;
+  const channel = new MessageChannel();
+  channel.port1.onmessage = e => { $('#version').textContent = 'Version ' + e.data; };
+  registration.active.postMessage('version', [channel.port2]);
+}
+
+/** Ask Chrome not to evict our data when the phone runs low on space. */
+async function requestPersistentStorage() {
+  if (!navigator.storage || !navigator.storage.persist) return;
+  if (await navigator.storage.persisted()) return;
+  const granted = await navigator.storage.persist();
+  console.log('Persistent storage', granted ? 'granted' : 'not granted (yet)');
+}
+
 /* ---------- Start-up ---------- */
 
 async function init() {
@@ -570,6 +608,9 @@ async function init() {
     if (document.visibilityState === 'visible') refreshTimes();
   });
 }
+
+registerServiceWorker();
+requestPersistentStorage().catch(err => console.warn(err));
 
 init().catch(err => {
   console.error(err);
