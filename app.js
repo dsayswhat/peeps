@@ -10,6 +10,7 @@
      6. Toast with Undo
      7. Reset all
      8. Offline support (service worker) + persistent storage
+     9. Backup: export / import
 
    The `db` object comes from db.js, which is loaded first.
    ========================================================================== */
@@ -568,6 +569,107 @@ async function requestPersistentStorage() {
   console.log('Persistent storage', granted ? 'granted' : 'not granted (yet)');
 }
 
+/* ---------- 9. Backup: export / import ---------- */
+
+const BACKUP_APP_ID = 'kid-tally';
+
+/** Blob -> "data:image/jpeg;base64,..." */
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** "data:image/jpeg;base64,..." -> Blob (or null if it isn't an image). */
+function dataUrlToBlob(dataUrl) {
+  const match = /^data:(image\/[\w.+-]+);base64,(.*)$/s.exec(dataUrl || '');
+  if (!match) return null;
+  const bytes = atob(match[2]);
+  const array = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i);
+  return new Blob([array], { type: match[1] });
+}
+
+/** Download everything (photos included) as one JSON file. */
+async function exportBackup() {
+  const kids = await Promise.all(state.kids.map(async kid => ({
+    ...kid,
+    photo: kid.photo ? await blobToDataUrl(kid.photo) : null,
+  })));
+  const backup = {
+    app: BACKUP_APP_ID,
+    format: 1,
+    exportedAt: new Date().toISOString(),
+    lastReset: state.lastReset,
+    kids,
+  };
+
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().slice(0, 10);   // YYYY-MM-DD
+  const link = el('a', { href: url, download: `kid-checkin-backup-${stamp}.json` });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  showToast(`Backup saved (${kids.length} kid${kids.length === 1 ? '' : 's'})`);
+}
+
+/** Read a backup file and, after confirming, replace everything with it. */
+async function importBackup(e) {
+  const file = e.target.files[0];
+  e.target.value = '';                                    // allow re-picking the same file
+  if (!file) return;
+
+  let backup;
+  try {
+    backup = JSON.parse(await file.text());
+  } catch {
+    backup = null;
+  }
+  if (!backup || backup.app !== BACKUP_APP_ID || !Array.isArray(backup.kids)) {
+    showToast("That file isn't a Kid Check-In backup.");
+    return;
+  }
+
+  const when = backup.exportedAt ? ` from ${formatDate(Date.parse(backup.exportedAt))}` : '';
+  const ok = await askDialog({
+    title: 'Restore backup?',
+    message: `This replaces everything on this phone (${state.kids.length} kid${state.kids.length === 1 ? '' : 's'}) ` +
+             `with the backup${when} (${backup.kids.length} kid${backup.kids.length === 1 ? '' : 's'}).`,
+    okLabel: 'Restore', danger: true,
+  });
+  if (!ok) return;
+
+  // Rebuild clean records, so a hand-edited file can't sneak in odd values.
+  const count = n => (Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
+  const time = t => (Number.isFinite(t) && t > 0 ? t : null);
+  const kids = [...backup.kids]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((k, i) => ({
+      id: typeof k.id === 'string' && k.id ? k.id : crypto.randomUUID(),
+      name: String(k.name || 'Unnamed').slice(0, 40),
+      photo: dataUrlToBlob(k.photo),
+      talked: count(k.talked),
+      texted: count(k.texted),
+      lastTalked: time(k.lastTalked),
+      lastTexted: time(k.lastTexted),
+      order: i,
+    }));
+  const lastReset = time(backup.lastReset) || Date.now();
+
+  await db.replaceAll(kids, lastReset);
+  photoUrls.forEach(url => URL.revokeObjectURL(url));
+  photoUrls.clear();
+  state.kids = kids;
+  state.lastReset = lastReset;
+  render();
+  showToast(`Restored ${kids.length} kid${kids.length === 1 ? '' : 's'}`);
+}
+
 /* ---------- Start-up ---------- */
 
 async function init() {
@@ -591,6 +693,8 @@ async function init() {
   });
   $('#toast-undo').addEventListener('click', onUndo);
   $('#reset-btn').addEventListener('click', resetAll);
+  $('#export-btn').addEventListener('click', exportBackup);
+  $('#import-file').addEventListener('change', importBackup);
 
   // Load saved data
   state.kids = await db.getAllKids();
