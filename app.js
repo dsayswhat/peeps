@@ -1,5 +1,8 @@
 /* ==========================================================================
-   app.js — Kid Check-In Tally
+   app.js — Peep Check-In Tally
+
+   Note: the code still says "kid"/"kids" internally (database, variables)
+   so existing data and backups keep working; only on-screen text says "peep".
 
    Plain JavaScript, no frameworks. Rough layout of this file:
      1. Helpers (DOM building, dates)
@@ -107,7 +110,7 @@ function render() {
   const toggle = $('#edit-toggle');
   toggle.textContent = state.editing ? 'Done' : '⚙️';
   toggle.setAttribute('aria-pressed', String(state.editing));
-  toggle.setAttribute('aria-label', state.editing ? 'Done editing' : 'Edit kids');
+  toggle.setAttribute('aria-label', state.editing ? 'Done editing' : 'Edit peeps');
 
   const hasKids = state.kids.length > 0;
   $('#empty').hidden = hasKids || state.editing;
@@ -210,7 +213,7 @@ async function processPhoto(file, size = 512) {
   }
 }
 
-// Photo chosen in the "Add a kid" form — process it now and show a preview.
+// Photo chosen in the "Add a peep" form — process it now and show a preview.
 let pendingPhoto = null;
 async function onAddPhotoPicked(e) {
   const file = e.target.files[0];
@@ -610,12 +613,12 @@ async function exportBackup() {
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const stamp = new Date().toISOString().slice(0, 10);   // YYYY-MM-DD
-  const link = el('a', { href: url, download: `kid-checkin-backup-${stamp}.json` });
+  const link = el('a', { href: url, download: `peeps-checkin-backup-${stamp}.json` });
   document.body.append(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
-  showToast(`Backup saved (${kids.length} kid${kids.length === 1 ? '' : 's'})`);
+  showToast(`Backup saved (${kids.length} peep${kids.length === 1 ? '' : 's'})`);
 }
 
 /** Read a backup file and, after confirming, replace everything with it. */
@@ -631,15 +634,15 @@ async function importBackup(e) {
     backup = null;
   }
   if (!backup || backup.app !== BACKUP_APP_ID || !Array.isArray(backup.kids)) {
-    showToast("That file isn't a Kid Check-In backup.");
+    showToast("That file isn't a Peep Check-In backup.");
     return;
   }
 
   const when = backup.exportedAt ? ` from ${formatDate(Date.parse(backup.exportedAt))}` : '';
   const ok = await askDialog({
     title: 'Restore backup?',
-    message: `This replaces everything on this phone (${state.kids.length} kid${state.kids.length === 1 ? '' : 's'}) ` +
-             `with the backup${when} (${backup.kids.length} kid${backup.kids.length === 1 ? '' : 's'}).`,
+    message: `This replaces everything on this phone (${state.kids.length} peep${state.kids.length === 1 ? '' : 's'}) ` +
+             `with the backup${when} (${backup.kids.length} peep${backup.kids.length === 1 ? '' : 's'}).`,
     okLabel: 'Restore', danger: true,
   });
   if (!ok) return;
@@ -667,7 +670,7 @@ async function importBackup(e) {
   state.kids = kids;
   state.lastReset = lastReset;
   render();
-  showToast(`Restored ${kids.length} kid${kids.length === 1 ? '' : 's'}`);
+  showToast(`Restored ${kids.length} peep${kids.length === 1 ? '' : 's'}`);
 }
 
 /* ---------- Start-up ---------- */
