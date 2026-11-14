@@ -6,7 +6,8 @@
      2. App state + rendering the cards
      3. Edit mode: add / rename / change photo / delete / reorder
      4. Dialog (custom confirm / prompt)
-   (Later sections add tallies, undo, reset, backup and offline support.)
+     5. Tallies: tap / long-press
+     6. Toast with Undo
 
    The `db` object comes from db.js, which is loaded first.
    ========================================================================== */
@@ -370,10 +371,120 @@ function askDialog({ title, message = '', okLabel = 'OK', danger = false, input 
   });
 }
 
-/* ---------- Toast (a simple message for now; undo is wired up later) ---------- */
+/* ---------- 5. Tallies: tap = +1, long-press = −1 ---------- */
 
-function showToast(message) {
-  console.log(message);
+const LONG_PRESS_MS = 500;
+let press = null;   // the press in progress: { button, pointerId, timer, fired }
+
+function cancelPress() {
+  if (!press) return;
+  clearTimeout(press.timer);
+  press.button.classList.remove('pressing');
+  press = null;
+}
+
+function onPointerDown(e) {
+  const button = e.target.closest('.tally');
+  if (!button || e.button !== 0) return;   // ignore right/middle mouse buttons
+  cancelPress();
+  press = { button, pointerId: e.pointerId, fired: false, timer: null };
+  button.classList.add('pressing');
+  // If the finger is still down after 500 ms, it's a long-press: subtract one.
+  press.timer = setTimeout(() => {
+    press.fired = true;
+    button.classList.remove('pressing');
+    changeTally(button.dataset.id, button.dataset.field, -1);
+  }, LONG_PRESS_MS);
+}
+
+function onPointerUp(e) {
+  if (!press || e.pointerId !== press.pointerId) return;
+  const { button, fired } = press;
+  cancelPress();
+  if (fired) return;                       // long-press already handled
+  // Only count it if the finger was lifted while still over the button.
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  if (under && button.contains(under)) changeTally(button.dataset.id, button.dataset.field, +1);
+}
+
+// Keyboard users (Enter/Space) produce a click with detail === 0; count those too.
+// Pointer clicks are ignored here because pointerup already handled them.
+function onTallyKeyboardClick(e) {
+  const button = e.target.closest('.tally');
+  if (button && e.detail === 0) changeTally(button.dataset.id, button.dataset.field, +1);
+}
+
+/** Add `delta` (+1 or −1) to one kid's tally, save it, and offer Undo. */
+async function changeTally(id, field, delta) {
+  const kid = findKid(id);
+  if (!kid) return;
+  const lastField = FIELDS[field].last;
+  const button = document.querySelector(`.tally[data-id="${id}"][data-field="${field}"]`);
+
+  if (delta < 0 && kid[field] === 0) {     // never go below zero
+    vibrate([10, 40, 10]);
+    return;
+  }
+
+  // Remember the old values so Undo can put them back exactly.
+  const before = { [field]: kid[field], [lastField]: kid[lastField] };
+
+  kid[field] += delta;
+  if (delta > 0) kid[lastField] = Date.now();
+  else if (kid[field] === 0) kid[lastField] = null;   // back to zero: "never"
+
+  // Update the screen first so it feels instant, then save.
+  vibrate(delta > 0 ? 10 : [15, 60, 15]);
+  if (button) {
+    fillTallyButton(button, kid, field);
+    pulse(button, delta > 0 ? 'bump' : 'dip');
+  }
+  await db.putKid(kid);
+
+  const sign = delta > 0 ? '+1' : '−1';
+  showToast(`${sign} ${FIELDS[field].label} · ${kid.name}`, async () => {
+    Object.assign(kid, before);
+    await db.putKid(kid);
+    render();
+  });
+}
+
+/** Restart a CSS animation class on an element. */
+function pulse(element, className) {
+  element.classList.remove('bump', 'dip');
+  void element.offsetWidth;                // forces the browser to restart the animation
+  element.classList.add(className);
+}
+
+/* ---------- 6. Toast with optional Undo ---------- */
+
+const TOAST_MS = 4000;
+let toastTimer = null;
+let toastUndo = null;   // function to call if Undo is tapped
+
+/** Show a message at the bottom for 4 seconds. Pass `undo` to show an Undo button. */
+function showToast(message, undo = null) {
+  $('#toast-msg').textContent = message;
+  $('#toast-undo').hidden = !undo;
+  toastUndo = undo;
+  $('#toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, TOAST_MS);
+}
+
+function hideToast() {
+  clearTimeout(toastTimer);
+  $('#toast').classList.remove('show');
+  toastUndo = null;
+}
+
+async function onUndo() {
+  const undo = toastUndo;
+  hideToast();
+  if (undo) {
+    await undo();
+    vibrate(10);
+  }
 }
 
 /* ---------- Start-up ---------- */
@@ -387,6 +498,17 @@ async function init() {
   $('#photo-change').addEventListener('change', onChangePhotoPicked);
   $('#grid').addEventListener('click', onGridClick);
   $('#dialog-cancel').addEventListener('click', () => $('#dialog').close('cancel'));
+
+  // Tallies: pointer events cover both touch and mouse.
+  const grid = $('#grid');
+  grid.addEventListener('pointerdown', onPointerDown);
+  grid.addEventListener('pointerup', onPointerUp);
+  grid.addEventListener('pointercancel', cancelPress);   // e.g. the finger started scrolling
+  grid.addEventListener('click', onTallyKeyboardClick);
+  grid.addEventListener('contextmenu', e => {            // no long-press menu on tally buttons
+    if (e.target.closest('.tally')) e.preventDefault();
+  });
+  $('#toast-undo').addEventListener('click', onUndo);
 
   // Load saved data
   state.kids = await db.getAllKids();
