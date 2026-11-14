@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kid Check-In</title>
+  <meta name="description" content="Tally how often you've talked to and texted each of your kids.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#3b6ea8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b2129" media="(prefers-color-scheme: dark)">
+
+  <!-- All paths are relative so the app works under /<repo>/ on GitHub Pages -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- "defer" runs the scripts in order after the HTML is parsed -->
+  <script src="db.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div>
+      <h1>Kid Check-In</h1>
+      <p id="since" class="since">Counting since …</p>
+    </div>
+    <button id="edit-toggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Edit kids">⚙️</button>
+  </header>
+
+  <main>
+    <!-- ===== Edit tools: only visible in edit mode ===== -->
+    <section id="edit-tools" class="edit-tools" aria-label="Edit tools">
+      <form id="add-form" class="panel add-form">
+        <h2>Add a kid</h2>
+        <div class="add-row">
+          <!-- No "capture" attribute, so Android offers both camera and gallery -->
+          <label class="photo-pick" title="Choose a photo">
+            <img id="add-preview" alt="" hidden>
+            <span>📷<br>Photo</span>
+            <input id="add-photo" type="file" accept="image/*" aria-label="Photo">
+          </label>
+          <div class="add-fields">
+            <input id="add-name" class="text-input" type="text" placeholder="Name"
+                   autocomplete="off" maxlength="40" required aria-label="Name">
+            <button type="submit" class="btn primary">Add kid</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="panel">
+        <h2>Backup</h2>
+        <p>Everything lives only on this phone. Export a backup now and then, in case Chrome's data gets cleared.</p>
+        <div class="backup-buttons">
+          <button id="export-btn" type="button" class="btn">⬇️ Export</button>
+          <!-- No "accept" filter: Android sometimes greys out .json files if you set one -->
+          <label class="btn">⬆️ Import<input id="import-file" type="file" hidden></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Empty state ===== -->
+    <div id="empty" class="empty" hidden>
+      <p class="big">👋</p>
+      <p>No kids here yet. Add the first one to start counting check-ins.</p>
+      <button id="empty-add" type="button" class="btn primary">Add your first kid</button>
+    </div>
+
+    <!-- ===== Kid cards (filled in by app.js) ===== -->
+    <section id="grid" class="grid" aria-label="Kids">
+      <!-- SAMPLE CARDS (step 1 only; app.js replaces these) -->
+      <article class="card">
+        <div class="photo placeholder" aria-hidden="true">A</div>
+        <h2 class="name">Alex</h2>
+        <button type="button" class="tally tally-talked">
+          <span class="tally-label">💬 Talked</span>
+          <span class="tally-count">3</span>
+          <span class="tally-last">last: 2 days ago</span>
+        </button>
+        <button type="button" class="tally tally-texted">
+          <span class="tally-label">✉️ Texted</span>
+          <span class="tally-count">12</span>
+          <span class="tally-last">last: yesterday</span>
+        </button>
+        <div class="card-edit">
+          <button type="button" class="icon-btn" aria-label="Move up" disabled>⬆️</button>
+          <button type="button" class="icon-btn" aria-label="Move down">⬇️</button>
+          <button type="button" class="icon-btn" aria-label="Rename">✏️</button>
+          <button type="button" class="icon-btn" aria-label="Change photo">📷</button>
+          <button type="button" class="icon-btn" aria-label="Delete">🗑️</button>
+        </div>
+      </article>
+      <article class="card">
+        <div class="photo placeholder" aria-hidden="true">S</div>
+        <h2 class="name">Sam</h2>
+        <button type="button" class="tally tally-talked">
+          <span class="tally-label">💬 Talked</span>
+          <span class="tally-count">0</span>
+          <span class="tally-last">last: —</span>
+        </button>
+        <button type="button" class="tally tally-texted">
+          <span class="tally-label">✉️ Texted</span>
+          <span class="tally-count">5</span>
+          <span class="tally-last">last: 3 hours ago</span>
+        </button>
+        <div class="card-edit">
+          <button type="button" class="icon-btn" aria-label="Move up">⬆️</button>
+          <button type="button" class="icon-btn" aria-label="Move down" disabled>⬇️</button>
+          <button type="button" class="icon-btn" aria-label="Rename">✏️</button>
+          <button type="button" class="icon-btn" aria-label="Change photo">📷</button>
+          <button type="button" class="icon-btn" aria-label="Delete">🗑️</button>
+        </div>
+      </article>
+      <!-- END SAMPLE CARDS -->
+    </section>
+  </main>
+
+  <!-- ===== Reset: separated from the cards so it isn't hit by accident ===== -->
+  <footer id="reset-area" class="reset-area">
+    <button id="reset-btn" type="button" class="reset-btn">Reset all</button>
+    <p id="version" class="version"></p>
+  </footer>
+
+  <!-- ===== One reusable dialog for confirms and the rename prompt ===== -->
+  <dialog id="dialog">
+    <form method="dialog">
+      <h2 id="dialog-title"></h2>
+      <p id="dialog-message"></p>
+      <input id="dialog-input" class="text-input" type="text" maxlength="40" autocomplete="off" hidden>
+      <div class="dialog-actions">
+        <button id="dialog-cancel" type="button" class="btn">Cancel</button>
+        <button id="dialog-ok" type="submit" value="ok" class="btn primary">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== Undo toast ===== -->
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <span id="toast-msg" class="toast-msg"></span>
+    <button id="toast-undo" type="button">Undo</button>
+  </div>
+
+  <!-- Hidden picker used by each card's "change photo" button -->
+  <input id="photo-change" type="file" accept="image/*" hidden>
+
+</body>
+</html>
