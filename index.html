@@ -29,6 +29,17 @@
   </header>
 
   <main>
+    <!-- ===== Empty state ===== -->
+    <div id="empty" class="empty" hidden>
+      <p class="big">👋</p>
+      <p>No kids here yet. Add the first one to start counting check-ins.</p>
+      <button id="empty-add" type="button" class="btn primary">Add your first kid</button>
+    </div>
+
+    <!-- ===== Kid cards (filled in by app.js) ===== -->
+    <section id="grid" class="grid" aria-label="Kids">
+    </section>
+
     <!-- ===== Edit tools: only visible in edit mode ===== -->
     <section id="edit-tools" class="edit-tools" aria-label="Edit tools">
       <form id="add-form" class="panel add-form">
@@ -57,17 +68,6 @@
           <label class="btn">⬆️ Import<input id="import-file" type="file" hidden></label>
         </div>
       </div>
-    </section>
-
-    <!-- ===== Empty state ===== -->
-    <div id="empty" class="empty" hidden>
-      <p class="big">👋</p>
-      <p>No kids here yet. Add the first one to start counting check-ins.</p>
-      <button id="empty-add" type="button" class="btn primary">Add your first kid</button>
-    </div>
-
-    <!-- ===== Kid cards (filled in by app.js) ===== -->
-    <section id="grid" class="grid" aria-label="Kids">
     </section>
   </main>
 
