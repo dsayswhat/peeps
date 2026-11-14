@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Kid Check-In</title>
-  <meta name="description" content="Tally how often you've talked to and texted each of your kids.">
+  <title>Peep Check-In</title>
+  <meta name="description" content="Tally how often you've talked to and texted each of your peeps.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#3b6ea8" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1b2129" media="(prefers-color-scheme: dark)">
@@ -22,28 +22,28 @@
 
   <header class="app-header">
     <div>
-      <h1>Kid Check-In</h1>
+      <h1>Peep Check-In</h1>
       <p id="since" class="since">Counting since …</p>
     </div>
-    <button id="edit-toggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Edit kids">⚙️</button>
+    <button id="edit-toggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Edit peeps">⚙️</button>
   </header>
 
   <main>
     <!-- ===== Empty state ===== -->
     <div id="empty" class="empty" hidden>
       <p class="big">👋</p>
-      <p>No kids here yet. Add the first one to start counting check-ins.</p>
-      <button id="empty-add" type="button" class="btn primary">Add your first kid</button>
+      <p>No peeps here yet. Add the first one to start counting check-ins.</p>
+      <button id="empty-add" type="button" class="btn primary">Add your first peep</button>
     </div>
 
-    <!-- ===== Kid cards (filled in by app.js) ===== -->
-    <section id="grid" class="grid" aria-label="Kids">
+    <!-- ===== Peep cards (filled in by app.js) ===== -->
+    <section id="grid" class="grid" aria-label="Peeps">
     </section>
 
     <!-- ===== Edit tools: only visible in edit mode ===== -->
     <section id="edit-tools" class="edit-tools" aria-label="Edit tools">
       <form id="add-form" class="panel add-form">
-        <h2>Add a kid</h2>
+        <h2>Add a peep</h2>
         <div class="add-row">
           <!-- No "capture" attribute, so Android offers both camera and gallery -->
           <label class="photo-pick" title="Choose a photo">
@@ -54,7 +54,7 @@
           <div class="add-fields">
             <input id="add-name" class="text-input" type="text" placeholder="Name"
                    autocomplete="off" maxlength="40" required aria-label="Name">
-            <button type="submit" class="btn primary">Add kid</button>
+            <button type="submit" class="btn primary">Add peep</button>
           </div>
         </div>
       </form>

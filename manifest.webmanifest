@@ -1,7 +1,7 @@
 {
-  "name": "Kid Check-In",
+  "name": "Peep Check-In",
   "short_name": "Check-In",
-  "description": "Tally how often you've talked to and texted each of your kids.",
+  "description": "Tally how often you've talked to and texted each of your peeps.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Kid Check-In — styles
+   Peep Check-In — styles
    Colours are defined once as variables on :root, then swapped for dark
    mode with prefers-color-scheme. Everything else just uses the variables.
    ========================================================================== */
@@ -271,7 +271,7 @@ body:not(.editing) .card-edit { display: none; }
 .edit-tools {
   display: grid;
   gap: 16px;
-  margin-top: 20px;              /* sits below the kid cards */
+  margin-top: 20px;              /* sits below the peep cards */
 }
 @media (min-width: 640px) { .edit-tools { grid-template-columns: 2fr 1fr; } }
 

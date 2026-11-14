@@ -7,11 +7,11 @@
 
        >>> bump CACHE_VERSION on every deploy <<<
 
-   (Your kids and counts are in IndexedDB, not in this cache, so bumping
+   (Your peeps and counts are in IndexedDB, not in this cache, so bumping
    the version never touches your data.)
    ========================================================================== */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `kid-tally-${CACHE_VERSION}`;
 
 // Every file the app needs, as relative URLs (works under /<repo>/ on Pages).
