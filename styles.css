@@ -271,7 +271,7 @@ body:not(.editing) .card-edit { display: none; }
 .edit-tools {
   display: grid;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-top: 20px;              /* sits below the kid cards */
 }
 @media (min-width: 640px) { .edit-tools { grid-template-columns: 2fr 1fr; } }
 
